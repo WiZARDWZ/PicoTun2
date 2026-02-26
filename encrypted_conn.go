@@ -3,12 +3,13 @@ package httpmux
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -91,7 +92,7 @@ func (c *EncryptedConn) writePacket(data []byte) (int, error) {
 	// ② Encrypt
 	if c.gcm != nil {
 		nonce := make([]byte, c.gcm.NonceSize())
-		if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		if _, err := io.ReadFull(cryptorand.Reader, nonce); err != nil {
 			return 0, fmt.Errorf("nonce: %w", err)
 		}
 		ciphertext := c.gcm.Seal(nil, nonce, payload, nil)
@@ -229,7 +230,7 @@ func addPadding(data []byte, obfs *ObfsConfig) []byte {
 	binary.BigEndian.PutUint16(out[:2], uint16(len(data)))
 	copy(out[2:], data)
 	if padLen > 0 {
-		rand.Read(out[2+len(data):])
+		cryptorand.Read(out[2+len(data):])
 	}
 	return out
 }
@@ -252,7 +253,7 @@ func addStealthPadding(data []byte, s *StealthConfig) []byte {
 	binary.BigEndian.PutUint16(out[:2], uint16(len(data)))
 	copy(out[2:], data)
 	if padLen > 0 {
-		rand.Read(out[2+len(data):])
+		cryptorand.Read(out[2+len(data):])
 	}
 	return out
 }
@@ -299,9 +300,25 @@ func secureRandInt(n int) int {
 	if n <= 0 {
 		return 0
 	}
-	val, err := rand.Int(rand.Reader, big.NewInt(int64(n)))
+
+	// v2.5.2: fast random path for DPI timing/chunk variation.
+	// We seed once from crypto/rand and then use a locked PRNG.
+	// This avoids per-call crypto/rand overhead on hot paths (burst split, mimic headers).
+	fastRandMu.Lock()
+	v := fastRand.Intn(n)
+	fastRandMu.Unlock()
+	return v
+}
+
+var (
+	fastRandMu sync.Mutex
+	fastRand   = rand.New(rand.NewSource(initFastRandSeed()))
+)
+
+func initFastRandSeed() int64 {
+	val, err := cryptorand.Int(cryptorand.Reader, big.NewInt(1<<62))
 	if err != nil {
-		return 0
+		return time.Now().UnixNano()
 	}
-	return int(val.Int64())
+	return val.Int64() + 1
 }
