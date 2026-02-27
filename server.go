@@ -149,21 +149,21 @@ func (s *Server) handleTunnel(w http.ResponseWriter, r *http.Request) {
 
 	// Send 101 Switching Protocols — v2.5.1: randomize response to break fingerprints
 	serverNames := []string{"nginx/1.24.0", "nginx/1.25.4", "cloudflare", "gws", "Microsoft-IIS/10.0", "Apache/2.4.58"}
-	srvName := serverNames[secureRandInt(len(serverNames))]
+	srvName := serverNames[fastRandInt(len(serverNames))]
 	resp := "HTTP/1.1 101 Switching Protocols\r\n" +
 		"Upgrade: websocket\r\n" +
 		"Connection: Upgrade\r\n" +
 		"Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n" +
 		"Server: " + srvName + "\r\n"
 	// Random extra headers to vary response fingerprint
-	if secureRandInt(2) == 0 {
+	if fastRandInt(2) == 0 {
 		resp += "X-Content-Type-Options: nosniff\r\n"
 	}
-	if secureRandInt(2) == 0 {
+	if fastRandInt(2) == 0 {
 		resp += "X-Frame-Options: SAMEORIGIN\r\n"
 	}
-	if secureRandInt(3) == 0 {
-		resp += fmt.Sprintf("Alt-Svc: h3=\":443\"; ma=%d\r\n", 86400+secureRandInt(86400))
+	if fastRandInt(3) == 0 {
+		resp += fmt.Sprintf("Alt-Svc: h3=\":443\"; ma=%d\r\n", 86400+fastRandInt(86400))
 	}
 	resp += "\r\n"
 
@@ -572,7 +572,7 @@ func (s *Server) fakeTrafficLoop(ss *serverSession) {
 	}
 
 	// Add jitter to interval
-	jitter := secureRandInt(int(interval.Seconds()/2)) + 1
+	jitter := fastRandInt(int(interval.Seconds()/2)) + 1
 	interval += time.Duration(jitter) * time.Second
 
 	ticker := time.NewTicker(interval)
@@ -587,7 +587,7 @@ func (s *Server) fakeTrafficLoop(ss *serverSession) {
 			s.sendFakeData(ss)
 		}
 		// Randomize next interval
-		jitter := secureRandInt(int(interval.Seconds()/3)) + 1
+		jitter := fastRandInt(int(interval.Seconds()/3)) + 1
 		ticker.Reset(interval + time.Duration(jitter)*time.Second)
 	}
 }
@@ -600,11 +600,11 @@ func (s *Server) sendFakeData(ss *serverSession) {
 	// Write a "fake" stream type that the client will just discard
 	stream.Write([]byte{0xFF})
 	// Random payload 32-256 bytes
-	size := 32 + secureRandInt(224)
+	size := 32 + fastRandInt(224)
 	fake := make([]byte, size)
 	rand.Read(fake)
 	stream.Write(fake)
-	time.Sleep(time.Duration(50+secureRandInt(200)) * time.Millisecond)
+	time.Sleep(time.Duration(50+fastRandInt(200)) * time.Millisecond)
 	stream.Close()
 }
 
@@ -647,9 +647,9 @@ func (s *Server) handleDecoy(w http.ResponseWriter, r *http.Request) {
 func (s *Server) writeDecoy(w http.ResponseWriter) {
 	// v2.5.1: Randomize decoy to prevent DPI fingerprinting
 	servers := []string{"nginx/1.24.0", "nginx/1.25.4", "Apache/2.4.58", "cloudflare"}
-	w.Header().Set("Server", servers[secureRandInt(len(servers))])
+	w.Header().Set("Server", servers[fastRandInt(len(servers))])
 	w.Header().Set("Content-Type", "text/html")
-	decoyIdx := secureRandInt(3)
+	decoyIdx := fastRandInt(3)
 	switch decoyIdx {
 	case 0:
 		w.WriteHeader(http.StatusNotFound)
@@ -689,7 +689,7 @@ func buildSmuxConfig(cfg *Config) *smux.Config {
 
 	// v2.5: Add jitter to keepalive to avoid DPI pattern detection
 	if cfg.Stealth.KeepaliveJitter > 0 {
-		jitter := secureRandInt(cfg.Stealth.KeepaliveJitter*1000) - (cfg.Stealth.KeepaliveJitter * 500)
+		jitter := fastRandInt(cfg.Stealth.KeepaliveJitter*1000) - (cfg.Stealth.KeepaliveJitter * 500)
 		keepalive += time.Duration(jitter) * time.Millisecond
 		if keepalive < 500*time.Millisecond {
 			keepalive = 500 * time.Millisecond

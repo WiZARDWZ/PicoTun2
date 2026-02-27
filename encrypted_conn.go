@@ -8,8 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"math/big"
-	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -91,7 +89,14 @@ func (c *EncryptedConn) writePacket(data []byte) (int, error) {
 
 	// ② Encrypt
 	if c.gcm != nil {
-		nonce := make([]byte, c.gcm.NonceSize())
+		ns := c.gcm.NonceSize()
+		var nonceArr [32]byte
+		var nonce []byte
+		if ns <= len(nonceArr) {
+			nonce = nonceArr[:ns]
+		} else {
+			nonce = make([]byte, ns)
+		}
 		if _, err := io.ReadFull(cryptorand.Reader, nonce); err != nil {
 			return 0, fmt.Errorf("nonce: %w", err)
 		}
@@ -136,7 +141,7 @@ func (c *EncryptedConn) burstWrite(data []byte) (int, error) {
 
 	for len(remaining) > 0 {
 		// v2.5.1: Larger min chunk (1024) for better throughput
-		chunkSize := 1024 + secureRandInt(maxBurst-1024+1)
+		chunkSize := 1024 + fastRandInt(maxBurst-1024+1)
 		if chunkSize > len(remaining) {
 			chunkSize = len(remaining)
 		}
@@ -149,7 +154,7 @@ func (c *EncryptedConn) burstWrite(data []byte) (int, error) {
 
 		// v2.5.1: Minimal delay (0-2ms) — enough to vary timing, not enough to hurt speed
 		if len(remaining) > 0 {
-			time.Sleep(time.Duration(secureRandInt(3)) * time.Millisecond)
+			time.Sleep(time.Duration(fastRandInt(3)) * time.Millisecond)
 		}
 	}
 	return total, nil
@@ -224,7 +229,7 @@ func addPadding(data []byte, obfs *ObfsConfig) []byte {
 	padLen := obfs.MinPadding
 	diff := obfs.MaxPadding - obfs.MinPadding
 	if diff > 0 {
-		padLen += secureRandInt(diff)
+		padLen += fastRandInt(diff)
 	}
 	out := make([]byte, 2+len(data)+padLen)
 	binary.BigEndian.PutUint16(out[:2], uint16(len(data)))
@@ -248,7 +253,7 @@ func removePadding(data []byte) []byte {
 
 // v2.5: Stealth padding — same format as obfs padding but uses stealth config
 func addStealthPadding(data []byte, s *StealthConfig) []byte {
-	padLen := s.MinPadding + secureRandInt(s.MaxPadding-s.MinPadding+1)
+	padLen := s.MinPadding + fastRandInt(s.MaxPadding-s.MinPadding+1)
 	out := make([]byte, 2+len(data)+padLen)
 	binary.BigEndian.PutUint16(out[:2], uint16(len(data)))
 	copy(out[2:], data)
@@ -277,7 +282,7 @@ func obfsDelay(obfs *ObfsConfig) {
 	if max <= min || max <= 0 {
 		return
 	}
-	d := min + secureRandInt(max-min)
+	d := min + fastRandInt(max-min)
 	if d > 0 {
 		time.Sleep(time.Duration(d) * time.Millisecond)
 	}
@@ -293,32 +298,3 @@ func (c *EncryptedConn) SetReadDeadline(t time.Time) error  { return c.conn.SetR
 func (c *EncryptedConn) SetWriteDeadline(t time.Time) error { return c.conn.SetWriteDeadline(t) }
 
 var _ net.Conn = (*EncryptedConn)(nil)
-
-// ──────────────────── Crypto-safe random ────────────────────
-
-func secureRandInt(n int) int {
-	if n <= 0 {
-		return 0
-	}
-
-	// v2.5.2: fast random path for DPI timing/chunk variation.
-	// We seed once from crypto/rand and then use a locked PRNG.
-	// This avoids per-call crypto/rand overhead on hot paths (burst split, mimic headers).
-	fastRandMu.Lock()
-	v := fastRand.Intn(n)
-	fastRandMu.Unlock()
-	return v
-}
-
-var (
-	fastRandMu sync.Mutex
-	fastRand   = rand.New(rand.NewSource(initFastRandSeed()))
-)
-
-func initFastRandSeed() int64 {
-	val, err := cryptorand.Int(cryptorand.Reader, big.NewInt(1<<62))
-	if err != nil {
-		return time.Now().UnixNano()
-	}
-	return val.Int64() + 1
-}
