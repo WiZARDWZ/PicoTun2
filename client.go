@@ -102,7 +102,7 @@ func (c *Client) Start() error {
 		}(i)
 		// v2.5: Randomized stagger to avoid DPI pattern detection
 		base := 500
-		jitter := secureRandInt(c.cfg.Stealth.ConnJitterMS + 1)
+		jitter := fastRandInt(c.cfg.Stealth.ConnJitterMS + 1)
 		time.Sleep(time.Duration(base+jitter) * time.Millisecond)
 	}
 
@@ -165,12 +165,12 @@ func (c *Client) poolWorker(id int) {
 			}
 
 			// v2.5: Add random jitter to prevent all workers reconnecting simultaneously
-			jitter := time.Duration(secureRandInt(500)) * time.Millisecond
+			jitter := time.Duration(fastRandInt(500)) * time.Millisecond
 			time.Sleep(retryInterval + jitter)
 		} else {
 			failCount = 0
 			consecutiveSuccess++
-			jitter := time.Duration(secureRandInt(1000)) * time.Millisecond
+			jitter := time.Duration(fastRandInt(1000)) * time.Millisecond
 			time.Sleep(retryInterval + jitter)
 		}
 	}
@@ -200,7 +200,7 @@ func (c *Client) connectAndServe(id int, path PathConfig) error {
 
 	// v2.5: Random pre-connect delay for DPI stealth
 	if c.cfg.Stealth.ConnJitterMS > 0 {
-		jitter := secureRandInt(c.cfg.Stealth.ConnJitterMS)
+		jitter := fastRandInt(c.cfg.Stealth.ConnJitterMS)
 		time.Sleep(time.Duration(jitter) * time.Millisecond)
 	}
 
@@ -459,7 +459,7 @@ func (c *Client) dialFragmentedTLS(addr string, timeout time.Duration) (net.Conn
 
 	// v2.5.1: Rotate SNI to match rotated Host header for DPI consistency
 	if c.cfg.Stealth.RotateDomain && len(c.cfg.Stealth.DomainPool) > 0 {
-		sni = c.cfg.Stealth.DomainPool[secureRandInt(len(c.cfg.Stealth.DomainPool))]
+		sni = c.cfg.Stealth.DomainPool[fastRandInt(len(c.cfg.Stealth.DomainPool))]
 	}
 
 	// v2.5: Use different TLS fingerprints randomly
@@ -484,7 +484,7 @@ func randomTLSHello() utls.ClientHelloID {
 		utls.HelloEdge_Auto,
 		utls.HelloSafari_Auto,
 	}
-	return hellos[secureRandInt(len(hellos))]
+	return hellos[fastRandInt(len(hellos))]
 }
 
 func (c *Client) fragmentCfg() *FragmentConfig {

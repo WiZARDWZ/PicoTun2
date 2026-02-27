@@ -65,7 +65,7 @@ func (c *FragmentedConn) Write(b []byte) (int, error) {
 	}
 
 	// Random delay between fragments
-	delay := c.delay + time.Duration(secureRandInt(2))*time.Millisecond
+	delay := c.delay + time.Duration(fastRandInt(2))*time.Millisecond
 	time.Sleep(delay)
 
 	n2, err := c.Conn.Write(frag2)
@@ -98,13 +98,13 @@ func DialFragmented(addr string, cfg *FragmentConfig, timeout time.Duration) (ne
 	fragSize := minSize
 	diff := maxSize - minSize
 	if diff > 0 {
-		fragSize += secureRandInt(diff + 1)
+		fragSize += fastRandInt(diff + 1)
 	}
 
 	delayMs := minDelay
 	delayDiff := maxDelay - minDelay
 	if delayDiff > 0 {
-		delayMs += secureRandInt(delayDiff + 1)
+		delayMs += fastRandInt(delayDiff + 1)
 	}
 	delay := time.Duration(delayMs) * time.Millisecond
 
@@ -152,11 +152,11 @@ func GetRandomCipherSuites() []uint16 {
 	copy(suites, picotunCipherSuites)
 
 	for i := len(suites) - 1; i > 0; i-- {
-		j := secureRandInt(i + 1)
+		j := fastRandInt(i + 1)
 		suites[i], suites[j] = suites[j], suites[i]
 	}
 
-	count := secureRandInt(4) + 3
+	count := fastRandInt(4) + 3
 	if count > len(suites) {
 		count = len(suites)
 	}

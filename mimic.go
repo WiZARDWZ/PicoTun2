@@ -76,10 +76,10 @@ func ClientHandshakeWithStealth(conn net.Conn, cfg *MimicConfig, stealth *Stealt
 	// v2.5.1: Rotate domain & UA per connection to break DPI fingerprints
 	if stealth != nil {
 		if stealth.RotateDomain && len(stealth.DomainPool) > 0 {
-			domain = stealth.DomainPool[secureRandInt(len(stealth.DomainPool))]
+			domain = stealth.DomainPool[fastRandInt(len(stealth.DomainPool))]
 		}
 		if stealth.RotateUA && len(stealth.UAPool) > 0 {
-			ua = stealth.UAPool[secureRandInt(len(stealth.UAPool))]
+			ua = stealth.UAPool[fastRandInt(len(stealth.UAPool))]
 		}
 	}
 
@@ -148,7 +148,7 @@ func ClientHandshakeWithStealth(conn net.Conn, cfg *MimicConfig, stealth *Stealt
 
 	// Shuffle extra headers to randomize order
 	for i := len(extraHeaders) - 1; i > 0; i-- {
-		j := secureRandInt(i + 1)
+		j := fastRandInt(i + 1)
 		extraHeaders[i], extraHeaders[j] = extraHeaders[j], extraHeaders[i]
 	}
 
@@ -172,10 +172,10 @@ func ClientHandshakeWithStealth(conn net.Conn, cfg *MimicConfig, stealth *Stealt
 		if cfg.SessionCookie {
 			req.AddCookie(&http.Cookie{Name: "session", Value: generateSessionID()})
 			// Realistic extra cookies sometimes
-			if secureRandInt(3) == 0 {
-				req.AddCookie(&http.Cookie{Name: "_ga", Value: fmt.Sprintf("GA1.2.%d.%d", 100000000+secureRandInt(900000000), 1700000000+secureRandInt(100000000))})
+			if fastRandInt(3) == 0 {
+				req.AddCookie(&http.Cookie{Name: "_ga", Value: fmt.Sprintf("GA1.2.%d.%d", 100000000+fastRandInt(900000000), 1700000000+fastRandInt(100000000))})
 			}
-			if secureRandInt(4) == 0 {
+			if fastRandInt(4) == 0 {
 				req.AddCookie(&http.Cookie{Name: "consent", Value: "yes"})
 			}
 		}
@@ -217,27 +217,27 @@ func randomAcceptLang() string {
 		"en-US,en;q=0.9,ar;q=0.8",
 		"en-US,en;q=0.9,tr;q=0.8",
 	}
-	return langs[secureRandInt(len(langs))]
+	return langs[fastRandInt(len(langs))]
 }
 
 // randomPlatform returns a Sec-Ch-Ua-Platform value
 func randomPlatform() string {
 	platforms := []string{`"Windows"`, `"macOS"`, `"Linux"`}
-	return platforms[secureRandInt(len(platforms))]
+	return platforms[fastRandInt(len(platforms))]
 }
 
 // randomQueryString generates a realistic random query string
 func randomQueryString() string {
 	queries := []string{
-		"?q=" + randAlphaNum(5+secureRandInt(10)),
-		"?s=" + randAlphaNum(4+secureRandInt(8)) + "&lang=en",
-		"?p=" + fmt.Sprintf("%d", 1+secureRandInt(500)),
-		"?id=" + randAlphaNum(8) + "&v=" + fmt.Sprintf("%d", secureRandInt(10)),
+		"?q=" + randAlphaNum(5+fastRandInt(10)),
+		"?s=" + randAlphaNum(4+fastRandInt(8)) + "&lang=en",
+		"?p=" + fmt.Sprintf("%d", 1+fastRandInt(500)),
+		"?id=" + randAlphaNum(8) + "&v=" + fmt.Sprintf("%d", fastRandInt(10)),
 		"?ref=" + randAlphaNum(6),
-		"?t=" + fmt.Sprintf("%d", 1700000000+secureRandInt(100000000)),
+		"?t=" + fmt.Sprintf("%d", 1700000000+fastRandInt(100000000)),
 		"?utm_source=" + randAlphaNum(5) + "&utm_medium=web",
 	}
-	return queries[secureRandInt(len(queries))]
+	return queries[fastRandInt(len(queries))]
 }
 
 // generateWebSocketKeyBase64 generates a proper RFC 6455 base64 WS key
