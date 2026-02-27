@@ -137,7 +137,7 @@ type AdvancedConfig struct {
 	MaxUDPFlows          int  `yaml:"max_udp_flows"`
 	UDPFlowTimeout       int  `yaml:"udp_flow_timeout"`
 	UDPBufferSize        int  `yaml:"udp_buffer_size"`
-	MaxStreamsPerSession  int  `yaml:"max_streams_per_session"`
+	MaxStreamsPerSession int  `yaml:"max_streams_per_session"`
 }
 
 type HTTPMimicCompat struct {
@@ -363,6 +363,21 @@ func applyProfile(c *Config) {
 		c.Obfuscation.MinDelayMS = 0
 		c.Obfuscation.MaxDelayMS = 0
 		c.HTTPMimic.ChunkedEncoding = false
+		if c.Smux.FrameSize < 32768 {
+			c.Smux.FrameSize = 32768
+		}
+		if c.Smux.MaxRecv < 8388608 {
+			c.Smux.MaxRecv = 8388608
+		}
+		if c.Smux.MaxStream < 8388608 {
+			c.Smux.MaxStream = 8388608
+		}
+		if c.Advanced.TCPReadBuffer < 1048576 {
+			c.Advanced.TCPReadBuffer = 1048576
+		}
+		if c.Advanced.TCPWriteBuffer < 1048576 {
+			c.Advanced.TCPWriteBuffer = 1048576
+		}
 		for i := range c.Paths {
 			if c.Paths[i].ConnectionPool < 4 {
 				c.Paths[i].ConnectionPool = 4

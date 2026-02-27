@@ -93,8 +93,54 @@ When updating PicoTun, old config files are automatically migrated to v2.5 forma
 
 ## Installation
 
+### 1) Quick install (recommended)
+Run installer on a clean Ubuntu/Debian/CentOS server as `root` (or with `sudo -i`):
+
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/amir6dev/PicoTun/main/setup.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/amir6dev/PicoTun2/main/setup.sh)
+```
+
+What this script does:
+- Installs required packages (`wget`, `curl`, `tar`, `openssl`, `iproute2`/`iproute`)
+- Downloads latest PicoTun release binary
+- Creates config directory in `/etc/picotun`
+- Creates and enables `systemd` services (`picotun-server` / `picotun-client`)
+- Optionally applies network optimization profile (BBR + TCP tuning)
+
+### 2) Update existing installation
+Re-run the same installer command. It keeps your configs and updates the binary/service files.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/amir6dev/PicoTun2/main/setup.sh)
+```
+
+### 3) Manual install (without interactive script)
+If you prefer manual deployment:
+
+```bash
+# 1) download script
+curl -fsSL https://raw.githubusercontent.com/amir6dev/PicoTun2/main/setup.sh -o setup.sh
+
+# 2) inspect it (recommended)
+less setup.sh
+
+# 3) run it
+bash setup.sh
+```
+
+### 4) Verify installation
+
+```bash
+# Binary check
+/usr/local/bin/picotun -h
+
+# Service status
+systemctl status picotun-server
+systemctl status picotun-client
+
+# Live logs
+journalctl -u picotun-server -f
+journalctl -u picotun-client -f
 ```
 
 ## Architecture
